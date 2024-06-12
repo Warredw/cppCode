@@ -1,0 +1,8 @@
+# ninja log v5
+625	730	7395581859939451	cppCode.exe	3398fe91f4ca7603
+26	645	7395633530498132	CMakeFiles/cppCode.dir/src/main.cpp.obj	e4f431a9a6c82fa
+922	1107	7395633535066035	build/bin/cppCode.exe	bb731812222fec1f
+31	921	7395633533272388	CMakeFiles/cppCode.dir/src/Competition.cpp.obj	de9a3cc8da6e7ef6
+5	487	7395636435194523	build.ninja	60d18351d077accf
+35	109	7395635880030166	CMakeFiles/cppCode.dir/src/Team.cpp.obj	22f3e7cc94c06d5b
+4	454	7395636435194523	build.ninja	60d18351d077accf

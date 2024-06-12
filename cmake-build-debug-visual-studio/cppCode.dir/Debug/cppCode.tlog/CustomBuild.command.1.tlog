@@ -1,0 +1,10 @@
+^C:\USERS\DEWAE\DOCUMENTS\THESIS\CPPCODE\CMAKELISTS.TXT
+setlocal
+"C:\Program Files\JetBrains\CLion 2023.3.4\bin\cmake\win\x64\bin\cmake.exe" -SC:/Users/dewae/Documents/thesis/cppCode -BC:/Users/dewae/Documents/thesis/cppCode/cmake-build-debug-visual-studio --check-stamp-file C:/Users/dewae/Documents/thesis/cppCode/cmake-build-debug-visual-studio/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
