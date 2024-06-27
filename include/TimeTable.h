@@ -3,26 +3,33 @@
 #include "HapSet.h"
 #include "Match.h"
 
-
 class TimeTable {
 
 public:
+    // storing where the home games occur in the first half of the tournament
+    vector<vector<vector<int>>> homeAwayGames;
+
+    int numberSchedulesPossible;
 
     HapSet hapSet;
     Team* teams;
 
-    // Length of the vector is the number of rounds, in each round there are 8 matches
-    vector<vector<Match>> timeTableFirstHalf;
-    vector<vector<Match>> timeTableSecondHalf;
+    struct Round{
+        vector<Match> round;
+    };
+
+    struct Schedule{
+        vector<Round> schedule;
+    };
+
+    Schedule timeTableFirstHalf;
+    vector<Schedule> allTimeTablesSecondHalf;
 
     TimeTable();
     ~TimeTable();
 
     void makeScheduleFirstHalf();
-    void makeScheduleSecondHalf();
     void setTeams() const;
-
+    void makeAllSchedulesSecondHalf();
 };
-
-
 #endif //CPPCODE_TIMETABLE_H

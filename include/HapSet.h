@@ -8,9 +8,9 @@
 #include <fstream>
 #include <ilcplex/ilocplex.h>
 
-
 using std::string;
 using std::vector;
+
 
 class HapSet {
 
