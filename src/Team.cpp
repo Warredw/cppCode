@@ -7,10 +7,10 @@ Team::Team(const string &name) {
     score = 0;
 }
 
+
 Team::Team() {
     this->name = "empty";
 }
-
 
 
 

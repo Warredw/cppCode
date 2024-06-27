@@ -1,10 +1,10 @@
 #include "TimeTable.h"
 
-TimeTable::TimeTable() : hapSet("22222221"){
+TimeTable::TimeTable() : hapSet("31222221"){
     teams = new Team[hapSet.nrTeams];
     setTeams();
     makeScheduleFirstHalf();
-    makeScheduleSecondHalf();
+    makeAllSchedulesSecondHalf();
 }
 
 TimeTable::~TimeTable() {
@@ -49,8 +49,7 @@ void TimeTable::makeScheduleFirstHalf() {
 
     // Constraint that team plays every other team exactly once
     for (int i = 0; i < hapSet.nrTeams; i++) {
-        for (int j = 0; j < hapSet.nrTeams; j++) {
-            if (i != j) {
+        for (int j = i+1; j < hapSet.nrTeams; j++) {
                 IloExpr expr(env);
                 for (int s = 0; s < hapSet.nrTeams - 1; s++) {
                     expr += x[i][j][s] + x[j][i][s];
@@ -59,7 +58,6 @@ void TimeTable::makeScheduleFirstHalf() {
                 expr.end();
             }
         }
-    }
 
     // Constraint that each team plays according to its HAP
     for (int i = 0; i < hapSet.nrTeams; i++) {
@@ -85,8 +83,19 @@ void TimeTable::makeScheduleFirstHalf() {
         std::cout << "No solution found." << std::endl;
     }
 
-    // store the schedule inside timeTableFirstHalf
-    timeTableFirstHalf.resize(hapSet.nrTeams-1);
+    // Resize timeTableFirstHalf
+    timeTableFirstHalf.schedule.resize(hapSet.nrTeams-1);
+
+    // Resize homeAwayGames
+    homeAwayGames.resize(hapSet.nrTeams);
+    for(int i = 0; i < hapSet.nrTeams; i++) {
+        homeAwayGames[i].resize(hapSet.nrTeams);
+        for(int j = 0; j < hapSet.nrTeams; j++) {
+            homeAwayGames[i][j].resize(hapSet.nrTeams-1);
+        }
+    }
+
+    // Store the results in timeTableFirstHalf and homeAwayGames
     for(int s = 0; s < hapSet.nrTeams-1; s++) {
         for(int i = 0; i < hapSet.nrTeams; i++) {
             for(int j = 0; j < hapSet.nrTeams; j++) {
@@ -94,8 +103,9 @@ void TimeTable::makeScheduleFirstHalf() {
                     if(cplex.getValue(x[i][j][s]) == 1) {
                         // Initialize Match
                         Match match(teams[i], teams[j]);
-                        // add match to schedule
-                        timeTableFirstHalf[s].push_back(match);
+                        // add match to schedule homeAwayGames
+                        timeTableFirstHalf.schedule[s].round.push_back(match);
+                        homeAwayGames[i][j][s] = 1;
                     }
                 }
             }
@@ -118,7 +128,7 @@ void TimeTable::makeScheduleFirstHalf() {
         for (int s = 0; s < hapSet.nrTeams - 1; s++) {
             string cell_content;
             bool matchFound = false;
-            for (const auto& match : timeTableFirstHalf[s]) {
+            for (const auto& match : timeTableFirstHalf.schedule[s].round) {
                 if (match.homeTeam == &teams[i]) {
                     cell_content = "Home vs " + match.awayTeam->name;
                     matchFound = true;
@@ -139,8 +149,7 @@ void TimeTable::makeScheduleFirstHalf() {
 }
 
 
-
-void TimeTable::makeScheduleSecondHalf() {
+void TimeTable::makeAllSchedulesSecondHalf() {
     IloEnv env;
     IloModel model(env);
 
@@ -158,15 +167,13 @@ void TimeTable::makeScheduleSecondHalf() {
 
     // Constraint that team plays every other team exactly once
     for (int i = 0; i < hapSet.nrTeams; i++) {
-        for (int j = 0; j < hapSet.nrTeams; j++) {
-            if (i != j) {
-                IloExpr expr(env);
-                for (int s = 0; s < hapSet.nrTeams - 1; s++) {
-                    expr += x[i][j][s] + x[j][i][s];
-                }
-                model.add(IloRange(env, 1, expr, 1));
-                expr.end();
+        for (int j = i+1; j < hapSet.nrTeams; j++) {
+            IloExpr expr(env);
+            for (int s = 0; s < hapSet.nrTeams - 1; s++) {
+                expr += x[i][j][s] + x[j][i][s];
             }
+            model.add(IloRange(env, 1, expr, 1));
+            expr.end();
         }
     }
 
@@ -188,122 +195,96 @@ void TimeTable::makeScheduleSecondHalf() {
         }
     }
 
-    // Constraint that ensures teams play in opposite venues compared to the first half
-    for(int s = 0; s < hapSet.nrTeams-1; s++) {
-        for(int i = 0; i < hapSet.nrTeams; i++) {
-            // look for the opponent in this round and store whether the team played at home or away against this opponent
-            bool isHomeTeam;
-            Team opponent;
-            int opponentIndex;
-            // go over all the matches per round to find the opponent
-            for(const auto &match: timeTableFirstHalf[s]) {
-                if(match.homeTeam == &teams[i]) {
-                    opponent = *match.awayTeam;
-                    isHomeTeam = true;
-
-                    //find opponent index
-                    for(int w = 0; w < hapSet.nrTeams; w++) {
-                        if(teams[w] == opponent) opponentIndex = w;
-                    }
-                    break;
+    // Constraint that each match is played in the opposite venue compared to the first half
+    for(int i = 0; i < hapSet.nrTeams; i++) {
+        for(int j = 0; j < hapSet.nrTeams; j++) {
+            if (i != j) {
+                IloExpr expr1(env);
+                IloExpr expr2(env);
+                int homeTeam = 0;
+                for (int s = 0; s < hapSet.nrTeams - 1; s++) {
+                    homeTeam += homeAwayGames[i][j][s]; // homeTeam will be 1 if team i played at home against team j and 0 otherwise
+                    expr1 += x[i][j][s];
+                    expr2 += x[j][i][s];
                 }
-                else if (match.awayTeam == &teams[i]) {
-                    opponent = *match.homeTeam;
-                    isHomeTeam = false;
-
-                    //find opponent index
-                    for(int w = 0; w < hapSet.nrTeams; w++) {
-                        if(teams[w] == opponent) opponentIndex = w;
-                    }
-                    break;
+                if (homeTeam == 1) {
+                    model.add(expr1 == 0);
+                    model.add(expr2 == 1);
+                } else {
+                    model.add(expr1 == 1);
+                    model.add(expr2 == 0);
                 }
+                expr1.end();
+                expr2.end();
             }
-
-            IloExpr homeExpr(env);
-            IloExpr awayExpr(env);
-            // Ensure that the team plays in the opposite venue
-            for(int c = 0; c < hapSet.nrTeams - 1; c++) {
-                homeExpr += x[i][opponentIndex][c];
-                awayExpr += x[opponentIndex][i][c];
-            }
-            if(isHomeTeam) {
-                model.add(homeExpr == 0);
-                model.add(awayExpr == 1);
-            }
-            else{
-                model.add(homeExpr == 1);
-                model.add(awayExpr == 0);
-            }
-            homeExpr.end();
-            awayExpr.end();
         }
     }
+
 
     IloCplex cplex(model);
     cplex.setParam(IloCplex::Param::MIP::Tolerances::MIPGap, 0); // Set MIP gap tolerance to zero to ensure finding all feasible solutions
 
     if (cplex.populate()) {
         int numFeasibleSolutions = static_cast<int>(cplex.getSolnPoolNsolns()); // Get the number of feasible solutions
+        numberSchedulesPossible = numFeasibleSolutions;
         std::cout << "Number of feasible solutions found: " << numFeasibleSolutions << std::endl;
-    } else {
-        std::cout << "No solution found." << std::endl;
-    }
 
-    // store the schedule inside timeTableSecondHalf
-    timeTableSecondHalf.resize(hapSet.nrTeams-1);
-    for(int s = 0; s < hapSet.nrTeams-1; s++) {
-        for(int i = 0; i < hapSet.nrTeams; i++) {
-            for(int j = 0; j < hapSet.nrTeams; j++) {
-                if(i != j) {
-                    if(cplex.getValue(x[i][j][s]) == 1) {
-                        // Initialize Match
-                        Match match(teams[i], teams[j]);
-                        // add match to schedule
-                        timeTableSecondHalf[s].push_back(match);
+        allTimeTablesSecondHalf.resize(numFeasibleSolutions);
+
+        for (int sol = 0; sol < numFeasibleSolutions; sol++) {
+
+            allTimeTablesSecondHalf[sol].schedule.resize(hapSet.nrTeams-1);
+            // Extract the solution and store it
+            for(int s = 0; s < hapSet.nrTeams-1; s++) {
+                for(int i = 0; i < hapSet.nrTeams; i++) {
+                    for(int j = 0; j < hapSet.nrTeams; j++) {
+                        if(i != j) {
+                            if(cplex.getValue(x[i][j][s], sol) == 1) {
+                                Match match(teams[i], teams[j]);
+                                allTimeTablesSecondHalf[sol].schedule[s].round.push_back(match);
+                            }
+                        }
                     }
                 }
             }
         }
-    }
+        // Save all schedules in CSV files
+        for (int sol = 0; sol < numFeasibleSolutions; sol++) {
+            std::ofstream file("C:/Users/dewae/Documents/thesis/cppCode/scheduleSecondHalf_" + std::to_string(sol) + ".csv");
 
-    // Save the schedule in a CSV file in a cross table format
-    std::ofstream file("C:/Users/dewae/Documents/thesis/cppCode/scheduleSecondHalf.csv");
-
-    // Write the header row
-    file << "\"Team\"";
-    for (int s = 0; s < hapSet.nrTeams - 1; s++) {
-        file << ",\"Round " << s + 1 << "\"";
-    }
-    file << "\n";
-
-    // Write the schedule data in a cross table format
-    for (int i = 0; i < hapSet.nrTeams; i++) {
-        file << "\"" << teams[i].name << "\"";
-        for (int s = 0; s < hapSet.nrTeams - 1; s++) {
-            string cell_content;
-            bool matchFound = false;
-            for (const auto& match : timeTableSecondHalf[s]) {
-                if (match.homeTeam == &teams[i]) {
-                    cell_content = "Home vs " + match.awayTeam->name;
-                    matchFound = true;
-                    break;
-                } else if (match.awayTeam == &teams[i]) {
-                    cell_content = "Away vs " + match.homeTeam->name;
-                    matchFound = true;
-                    break;
-                }
+            // Write the header row
+            file << "\"Team\"";
+            for (int s = 0; s < hapSet.nrTeams - 1; s++) {
+                file << ",\"Round " << s + 1 << "\"";
             }
-            file << ",\"" << (matchFound ? cell_content : "") << "\"";
-        }
-        file << "\n";
-    }
+            file << "\n";
 
-    file.close();
+            // Write the schedule data in a cross table format
+            for (int i = 0; i < hapSet.nrTeams; i++) {
+                file << "\"" << teams[i].name << "\"";
+                for (int s = 0; s < hapSet.nrTeams - 1; s++) {
+                    string cell_content;
+                    bool matchFound = false;
+                    for (const auto& match : allTimeTablesSecondHalf[sol].schedule[s].round) {
+                        if (match.homeTeam == &teams[i]) {
+                            cell_content = "Home vs " + match.awayTeam->name;
+                            matchFound = true;
+                            break;
+                        } else if (match.awayTeam == &teams[i]) {
+                            cell_content = "Away vs " + match.homeTeam->name;
+                            matchFound = true;
+                            break;
+                        }
+                    }
+                    file << ",\"" << (matchFound ? cell_content : "") << "\"";
+                }
+                file << "\n";
+            }
+
+            file.close();
+        }
+    } else {
+        std::cout << "No solution found." << std::endl;
+    }
     env.end();
 }
-
-
-
-
-
-

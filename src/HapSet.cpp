@@ -17,7 +17,6 @@ void HapSet::makeHapSetFirstHalf() {
     for(int i = 0; i < nrTeams; i++) {
         hapSetFirstHalf[i] = new int[nrTeams-1];
     }
-
     // Assume the complementary HAPs with a break in round 1 always to be present
     // Give team 1 a home-break in round 1 and team 2 an away-break in round 1
     hapSetFirstHalf[0][0] = 1;
@@ -48,7 +47,7 @@ void HapSet::makeHapSetFirstHalf() {
     }
 
     // Add the breaks to the HAP-set
-    for(int nextBreakTeam = 2, i = 0; i < roundsWithBreak.size(); i++)   {
+    for(int nextBreakTeam = 2, i = 0; i < roundsWithBreak.size(); i++) {
         int breakRound = roundsWithBreak[i];
         hapSetFirstHalf[nextBreakTeam][breakRound] = 1;
         hapSetFirstHalf[nextBreakTeam][breakRound-1] = 1;
@@ -93,7 +92,6 @@ void HapSet::makeHapSetFirstHalf() {
     }
     file.close();
 }
-
 // Mirror the HAP-set to get the HAP-set of the second half
 void HapSet::makeHapSetSecondHalf() {
 
